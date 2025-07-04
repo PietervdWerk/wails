@@ -22,6 +22,70 @@ struct WebviewPreferences {
 
 extern void registerListener(unsigned int event);
 
+// NSPanel support functions
+void* convertWindowToPanel(void* nsWindow);
+bool windowIsPanel(void* nsWindow);
+void* getWindowAsPanel(void* nsWindow);
+
+// Convert an NSWindow to NSPanel
+void* convertWindowToPanel(void* nsWindow) {
+    NSWindow* window = (NSWindow*)nsWindow;
+    if (!window || [window isKindOfClass:[NSPanel class]]) {
+        return window; // Already a panel or null
+    }
+    
+    // Get the window's properties
+    NSRect frame = [window frame];
+    NSWindowStyleMask styleMask = [window styleMask];
+    NSBackingStoreType backing = [window backingType];
+    
+    // Create new NSPanel with same properties
+    NSPanel* panel = [[NSPanel alloc] 
+        initWithContentRect:[window contentRectForFrameRect:frame]
+        styleMask:styleMask
+        backing:backing
+        defer:NO];
+    
+    // Copy properties from the original window
+    [panel setContentView:[window contentView]];
+    [panel setTitle:[window title]];
+    [panel setDelegate:[window delegate]];
+    [panel setBackgroundColor:[window backgroundColor]];
+    [panel setOpaque:[window isOpaque]];
+    [panel setHasShadow:[window hasShadow]];
+    [panel setAlphaValue:[window alphaValue]];
+    [panel setLevel:[window level]];
+    [panel setCollectionBehavior:[window collectionBehavior]];
+    
+    // Set default panel behaviors
+    [panel setFloatingPanel:YES];
+    [panel setHidesOnDeactivate:YES];
+    [panel setBecomesKeyOnlyIfNeeded:YES];
+    
+    // Make the panel visible if the original window was visible
+    if ([window isVisible]) {
+        [panel makeKeyAndOrderFront:nil];
+    }
+    
+    // Hide and close the original window
+    [window orderOut:nil];
+    
+    return panel;
+}
+
+bool windowIsPanel(void* nsWindow) {
+    NSWindow* window = (NSWindow*)nsWindow;
+    return [window isKindOfClass:[NSPanel class]];
+}
+
+void* getWindowAsPanel(void* nsWindow) {
+    NSWindow* window = (NSWindow*)nsWindow;
+    if ([window isKindOfClass:[NSPanel class]]) {
+        return window;
+    }
+    return NULL;
+}
+
 // Create a new Window
 void* windowNew(unsigned int id, int width, int height, bool fraudulentWebsiteWarningEnabled, bool frameless, bool enableDragAndDrop, struct WebviewPreferences preferences) {
 	NSWindowStyleMask styleMask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
@@ -812,9 +876,46 @@ static void setIgnoreMouseEvents(void *nsWindow, bool ignore) {
     [window setIgnoresMouseEvents:ignore];
 }
 
+// Panel specific C functions
+void setPanelFloating(void* nsPanel, bool floating) {
+    NSPanel* panel = (NSPanel*)nsPanel;
+    if (panel && [panel isKindOfClass:[NSPanel class]]) {
+        [panel setFloatingPanel:floating];
+    }
+}
+
+void setPanelHidesOnDeactivate(void* nsPanel, bool hidesOnDeactivate) {
+    NSPanel* panel = (NSPanel*)nsPanel;
+    if (panel && [panel isKindOfClass:[NSPanel class]]) {
+        [panel setHidesOnDeactivate:hidesOnDeactivate];
+    }
+}
+
+void setPanelBecomesKeyOnlyIfNeeded(void* nsPanel, bool becomesKeyOnlyIfNeeded) {
+    NSPanel* panel = (NSPanel*)nsPanel;
+    if (panel && [panel isKindOfClass:[NSPanel class]]) {
+        [panel setBecomesKeyOnlyIfNeeded:becomesKeyOnlyIfNeeded];
+    }
+}
+
+void setPanelWorksWhenModal(void* nsPanel, bool worksWhenModal) {
+    NSPanel* panel = (NSPanel*)nsPanel;
+    if (panel && [panel isKindOfClass:[NSPanel class]]) {
+        [panel setWorksWhenModal:worksWhenModal];
+    }
+}
+
+void setPanelReleasedWhenClosed(void* nsPanel, bool released) {
+    NSPanel* panel = (NSPanel*)nsPanel;
+    if (panel && [panel isKindOfClass:[NSPanel class]]) {
+        [panel setReleasedWhenClosed:released];
+    }
+}
+
 */
 import "C"
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -1438,3 +1539,118 @@ func (w *macosWebviewWindow) showMenuBar()    {}
 func (w *macosWebviewWindow) hideMenuBar()    {}
 func (w *macosWebviewWindow) toggleMenuBar()  {}
 func (w *macosWebviewWindow) setMenu(_ *Menu) {}
+
+// NSPanel support methods
+
+// ConvertToPanel converts the window to an NSPanel
+func (w *macosWebviewWindow) ConvertToPanel() error {
+	if w.nsWindow == nil {
+		return fmt.Errorf("window is nil")
+	}
+	
+	var newPanel unsafe.Pointer
+	var wg sync.WaitGroup
+	wg.Add(1)
+	globalApplication.dispatchOnMainThread(func() {
+		newPanel = C.convertWindowToPanel(w.nsWindow)
+		wg.Done()
+	})
+	wg.Wait()
+	
+	if newPanel == nil {
+		return fmt.Errorf("failed to convert window to panel")
+	}
+	
+	// Update the window pointer to the new panel
+	w.nsWindow = newPanel
+	return nil
+}
+
+// IsPanel returns true if the window is an NSPanel
+func (w *macosWebviewWindow) IsPanel() bool {
+	if w.nsWindow == nil {
+		return false
+	}
+	
+	return w.syncMainThreadReturningBool(func() bool {
+		return bool(C.windowIsPanel(w.nsWindow))
+	})
+}
+
+// GetAsPanel returns the window as an NSPanel pointer if it is a panel
+func (w *macosWebviewWindow) GetAsPanel() unsafe.Pointer {
+	if w.nsWindow == nil {
+		return nil
+	}
+	
+	var panel unsafe.Pointer
+	var wg sync.WaitGroup
+	wg.Add(1)
+	globalApplication.dispatchOnMainThread(func() {
+		panel = C.getWindowAsPanel(w.nsWindow)
+		wg.Done()
+	})
+	wg.Wait()
+	
+	return panel
+}
+
+// SetPanelFloating sets whether the panel floats above other windows
+func (w *macosWebviewWindow) SetPanelFloating(floating bool) error {
+	if !w.IsPanel() {
+		return fmt.Errorf("window is not a panel")
+	}
+	
+	globalApplication.dispatchOnMainThread(func() {
+		C.setPanelFloating(w.nsWindow, C.bool(floating))
+	})
+	return nil
+}
+
+// SetPanelHidesOnDeactivate sets whether the panel hides when it becomes inactive
+func (w *macosWebviewWindow) SetPanelHidesOnDeactivate(hides bool) error {
+	if !w.IsPanel() {
+		return fmt.Errorf("window is not a panel")
+	}
+	
+	globalApplication.dispatchOnMainThread(func() {
+		C.setPanelHidesOnDeactivate(w.nsWindow, C.bool(hides))
+	})
+	return nil
+}
+
+// SetPanelBecomesKeyOnlyIfNeeded sets whether the panel becomes key only if needed
+func (w *macosWebviewWindow) SetPanelBecomesKeyOnlyIfNeeded(onlyIfNeeded bool) error {
+	if !w.IsPanel() {
+		return fmt.Errorf("window is not a panel")
+	}
+	
+	globalApplication.dispatchOnMainThread(func() {
+		C.setPanelBecomesKeyOnlyIfNeeded(w.nsWindow, C.bool(onlyIfNeeded))
+	})
+	return nil
+}
+
+// SetPanelWorksWhenModal sets whether the panel works when a modal window is present
+func (w *macosWebviewWindow) SetPanelWorksWhenModal(worksWhenModal bool) error {
+	if !w.IsPanel() {
+		return fmt.Errorf("window is not a panel")
+	}
+	
+	globalApplication.dispatchOnMainThread(func() {
+		C.setPanelWorksWhenModal(w.nsWindow, C.bool(worksWhenModal))
+	})
+	return nil
+}
+
+// SetPanelReleasedWhenClosed sets whether the panel is released when closed
+func (w *macosWebviewWindow) SetPanelReleasedWhenClosed(released bool) error {
+	if !w.IsPanel() {
+		return fmt.Errorf("window is not a panel")
+	}
+	
+	globalApplication.dispatchOnMainThread(func() {
+		C.setPanelReleasedWhenClosed(w.nsWindow, C.bool(released))
+	})
+	return nil
+}

@@ -1379,8 +1379,144 @@ func (w *WebviewWindow) HideMenuBar() {
 
 // ToggleMenuBar toggles the menu bar for the window.
 func (w *WebviewWindow) ToggleMenuBar() {
-	if w.impl == nil || w.isDestroyed() {
-		return
+	if w.impl != nil {
+		InvokeSync(w.impl.toggleMenuBar)
 	}
-	InvokeSync(w.impl.toggleMenuBar)
+}
+
+// NSPanel Support Methods - macOS only
+
+// ConvertToPanel converts the window to an NSPanel (macOS only)
+// Returns an error if not on macOS or if the conversion fails
+func (w *WebviewWindow) ConvertToPanel() error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ ConvertToPanel() error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.ConvertToPanel()
+		})
+	}
+	
+	return fmt.Errorf("ConvertToPanel not implemented for this platform")
+}
+
+// IsPanel returns true if the window is an NSPanel (macOS only)
+func (w *WebviewWindow) IsPanel() bool {
+	if runtime.GOOS != "darwin" || w.impl == nil {
+		return false
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ IsPanel() bool }); ok {
+		return InvokeSyncWithResult(macImpl.IsPanel)
+	}
+	
+	return false
+}
+
+// SetPanelFloating sets whether the panel floats above other windows (macOS only)
+func (w *WebviewWindow) SetPanelFloating(floating bool) error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ SetPanelFloating(bool) error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.SetPanelFloating(floating)
+		})
+	}
+	
+	return fmt.Errorf("SetPanelFloating not implemented for this platform")
+}
+
+// SetPanelHidesOnDeactivate sets whether the panel hides when it becomes inactive (macOS only)
+func (w *WebviewWindow) SetPanelHidesOnDeactivate(hides bool) error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ SetPanelHidesOnDeactivate(bool) error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.SetPanelHidesOnDeactivate(hides)
+		})
+	}
+	
+	return fmt.Errorf("SetPanelHidesOnDeactivate not implemented for this platform")
+}
+
+// SetPanelBecomesKeyOnlyIfNeeded sets whether the panel becomes key only if needed (macOS only)
+func (w *WebviewWindow) SetPanelBecomesKeyOnlyIfNeeded(onlyIfNeeded bool) error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ SetPanelBecomesKeyOnlyIfNeeded(bool) error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.SetPanelBecomesKeyOnlyIfNeeded(onlyIfNeeded)
+		})
+	}
+	
+	return fmt.Errorf("SetPanelBecomesKeyOnlyIfNeeded not implemented for this platform")
+}
+
+// SetPanelWorksWhenModal sets whether the panel works when a modal window is present (macOS only)
+func (w *WebviewWindow) SetPanelWorksWhenModal(worksWhenModal bool) error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ SetPanelWorksWhenModal(bool) error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.SetPanelWorksWhenModal(worksWhenModal)
+		})
+	}
+	
+	return fmt.Errorf("SetPanelWorksWhenModal not implemented for this platform")
+}
+
+// SetPanelReleasedWhenClosed sets whether the panel is released when closed (macOS only)
+func (w *WebviewWindow) SetPanelReleasedWhenClosed(released bool) error {
+	if runtime.GOOS != "darwin" {
+		return fmt.Errorf("NSPanel is only supported on macOS")
+	}
+	
+	if w.impl == nil {
+		return fmt.Errorf("window is not initialized")
+	}
+	
+	// Type assert to get the macOS-specific implementation
+	if macImpl, ok := w.impl.(interface{ SetPanelReleasedWhenClosed(bool) error }); ok {
+		return InvokeSyncWithResult(func() error {
+			return macImpl.SetPanelReleasedWhenClosed(released)
+		})
+	}
+	
+	return fmt.Errorf("SetPanelReleasedWhenClosed not implemented for this platform")
 }
